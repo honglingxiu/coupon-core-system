@@ -1,0 +1,275 @@
+<template>
+	<div class="recharge">
+		<div class="pageTitleWrap">
+			<page-address></page-address>
+			<div class="backBtn"><span class='halfCircular' @click='HandleBack'>返回上一页</span></div>
+		</div>
+		<div class="detail">
+			<div class="detail-title">
+				<div class="title-name"><i class="coupon-icon-ren"></i>客户名称：{{ rechargeObj.orgName }}</div>
+				<div class="title-money"><i class="coupon-icon-qian mT20"></i>可用总额（元）：{{ Balance.balance }}</div>
+			</div>
+			<div class="detail-money">
+				<div class="actual-money mB10">实际余额（元）：{{ Balance.creditBalance }}</div>
+				<div class="credit-line mB10">授信额度（元）：{{ Balance.creditAmount }}</div>
+				<el-button size="small" type='primary' @click='dialog = true'>设置授信额度</el-button>
+			</div>
+		</div>
+		<div class="pageContentWrap">
+			<div class="pageContentWrap-title">客户充值</div>
+			<div class="pageContentWrap-content">
+				<el-form ref="FormRecharge" :model="FormRecharge" label-position='left' label-width='100px'>
+					<el-form-item label="充值类型：">
+						<el-radio-group v-model="FormRecharge.rechangeType">
+						    <el-radio :label="0">余额充值</el-radio>
+						    <el-radio :label="1">余额扣减</el-radio>
+						</el-radio-group>
+					</el-form-item>
+					<el-form-item label="充值金额：" class='CustomerRecharge'>
+						<el-input v-model="FormRecharge.rechangeAmount" class='add-input'></el-input>
+						<div class="tips">元</div>
+					</el-form-item>
+					<el-form-item label="操作说明：">
+						<el-input type="textarea" class='add-textarea' :autosize="{minRows: 5, maxRows: 8}" placeholder="不限制字符类型，支持1000以内的字符" v-model="FormRecharge.operationDescribe"></el-input>
+					</el-form-item>
+					<el-form-item>
+						<el-button type="primary" size='small' class='mL40' @click="HandleRecharge">确定充值</el-button>
+					</el-form-item>
+				</el-form>
+			</div>
+			<div class="pageContentWrap-title mT20">操作记录</div>
+			<div class="pageContentWrap-content">
+				<i-table ref="itable" :index="index" :list="tableLists" :columns="columns" :total="totalCount" @handlePageChange="handlePageChange"></i-table>
+			</div>
+		</div>
+		<el-dialog title="设置授信额度" :visible.sync="dialog" width="22%" @close="HandleDiaFormClose">
+			<el-form :model="diaForm" :inline="true">
+				<el-form-item label="授信额度：" class='CustomerRecharge f-right'>
+			      	<el-input size="mini" v-model="diaForm.creditAmount"></el-input>
+			      	<div>&nbsp;&nbsp;元</div>
+			    </el-form-item>
+			    <el-form-item class="center">
+			    	<el-button size="small" @click="HandleDiaFormClose">取 消</el-button>
+    				<el-button size="small" type="primary" @click="HandleSettingCreditLine">确 定</el-button>
+			    </el-form-item>
+			</el-form>
+		</el-dialog>
+	</div>
+</template>
+
+<script>
+	export default {
+		data () {
+			return {
+				FormRecharge: {
+					orgId: '',
+					rechangeType: 0,
+					rechangeAmount: '',
+					operationDescribe: '',
+					operator: ''
+				},
+				rechargeObj: {},
+				Balance: {},
+				UserName: '',
+				Reg_price:  /^[1-9]\d{0,}([.]\d{1,2})?$/,
+
+				/*===表格===*/
+				tableLists: [],
+				totalCount: 0,
+				index: {show: true},
+				columns: [
+					{
+						prop: 'createTime',
+						label: '操作时间'
+					},
+					{
+						prop: 'operationType',
+						label: '操作类型'
+					},
+					{
+						prop: 'operationAmount',
+						label: '操作金额（元）'
+					},
+					{
+						prop: 'operationUser',
+						label: '操作账号'
+					},
+					{
+						prop: 'operationDescribe',
+						label: '操作说明'
+					}
+				],
+
+				/*===设置授信额度===*/
+				dialog: false,
+				diaForm: {
+					creditAmount: ''
+				}
+			}
+		},
+
+		created () {
+			this.rechargeObj = JSON.parse(window.sessionStorage.getItem('JB_Customer_Recharge'));
+			if (window.sessionStorage.getItem('Coupon_Login')) {
+        		this.UserName = JSON.parse(window.sessionStorage.getItem('Coupon_Login'))['userName']
+        	} else {
+        		this.UserName = 'admin';
+        	}
+        	this.FormRecharge.orgId = this.rechargeObj.orgId;
+        	this.FormRecharge.operator = this.UserName;
+			this.HandleGetOrgBalance();
+			this.HandleFetchTableData();
+		},
+
+		methods: {
+			/*===返回上一页===*/
+			HandleBack () {
+				this.$router.push('/CustomerList')
+			},
+
+			/*===获取渠道可用余额、实际余额===*/
+			HandleGetOrgBalance () {
+				const self = this;
+				let url = self.URL.DownStreamCustomer.CustomerList.getOrgBalance;
+				let obj = {
+					orgId: self.rechargeObj.orgId
+				}
+				self.API.PostEntity(url, obj)
+				.then((res) => {
+					self.Balance = res.data;
+				})
+			},
+
+			/*===设置授信额度===*/
+			HandleSettingCreditLine () {
+		        const self = this;
+		        let reg = /^[0-9][0-9]{0,}$/;
+		        if (!reg.test(self.diaForm.creditAmount)) {
+		        	self.$message.error('授信额度只能输入整数');
+		        	return;
+		        } else {
+		        	let url = self.URL.DownStreamCustomer.CustomerList.setCreditAmount;
+		        	let obj = {
+		        		orgId: self.rechargeObj.orgId,
+		        		rechangeType: 3,
+		        		creditAmount: Number(self.diaForm.creditAmount),
+		        		operator: self.UserName
+		        	}
+		        	self.API.PostEntity(url, obj)
+		        	.then((res) => {
+		        		self.dialog = false;
+		        		self.HandleGetOrgBalance();
+		        		self.HandleFetchTableData();
+		        	})
+		        }
+			},
+
+			/*===授信额度对话框关闭==*/
+			HandleDiaFormClose () {
+				this.dialog = false;
+				this.diaForm.creditAmount = '';
+			},
+
+			/*===确定充值===*/
+			HandleRecharge () {
+				const self = this;
+				let obj = {...self.FormRecharge};
+				if (obj.rechangeAmount === '') {
+					self.$message.error("请输入充值金额");
+					return
+				} else if (!self.Reg_price.test(obj.rechangeAmount)) {
+					self.$message.error("输入金额有误，支持最多到小数点后2位");
+					return;
+				}
+				self.$confirm('您确认要给该客户进行充值操作？', '确认提示', {
+		          	confirmButtonText: '确定',
+		          	cancelButtonText: '取消'
+		        })
+		        .then(() => {
+		        	obj.rechangeAmount = Number(obj.rechangeAmount);
+					let url = self.URL.DownStreamCustomer.CustomerList.customerRechange;
+					self.API.PostEntity(url, obj)
+					.then((res) => {
+						self.FormRecharge.rechangeType = 0;
+						self.FormRecharge.rechangeAmount = '';
+						self.FormRecharge.operationDescribe = '';
+						this.HandleGetOrgBalance();
+			        	this.HandleFetchTableData();
+					})
+		        })
+		        .catch(() => {
+
+		        })
+			},
+
+			/*===获取页面表格数据===*/
+			HandleFetchTableData (entity) {
+				const self = this;
+				let obj = entity || {
+					orgId: self.rechargeObj.orgId,
+					pageIndex: 1,
+					pageSize: 10
+				}
+				let url = self.URL.DownStreamCustomer.CustomerList.getOperationRecord;
+				self.API.GetEntity(url, obj)
+				.then((res) => {
+					self.tableLists = res.data.data;
+					self.totalCount = res.data.totalCount;
+				})
+			},
+
+			/*===页码/页面条数发生改变===*/
+			handlePageChange (pagination) {
+				let obj = {
+					orgId: this.rechargeObj.orgId,
+					pageIndex: 1,
+					pageSize: 10
+				}
+				obj.pageIndex = (pagination.Pcurrent - 1) * pagination.Psizes + 1;
+				obj.pageSize = pagination.Psizes;
+				this.HandleFetchTableData(obj);
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.detail {
+		background: #3b485b;
+		color: #fff;
+		margin: 20px;
+		padding: 20px;
+		display: flex;
+		justify-content: space-between;
+	}
+	.detail-title {
+		font-size: 20px;
+	}
+	.detail-title i {
+		font-size: 30px;
+		margin-right: 10px;
+	}
+	.title-name {
+		margin-bottom: 10px;
+	}
+	.detail-money {
+		margin-top: 30px;
+		align-self: flex-end;
+	}
+	.add-input {
+		width: 300px;
+		margin-right: 20px;
+	}
+	.add-textarea {
+		width: 300px;
+		margin-right: 20px;
+	}
+	.center {
+		width: 100%;
+		text-align: center;
+	}
+	.flex {
+		display: flex;
+  		justify-content: space-between;
+	}
+</style>

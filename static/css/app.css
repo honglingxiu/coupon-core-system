@@ -1,0 +1,146 @@
+html, body, #app {
+	width: 100%;
+	min-width: 1366px;
+	height: 100%;
+	font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑",Arial, sans-serif;
+}
+
+/*===登录页===*/
+.loginForm .el-form-item__label {
+	color: #fff;
+}
+.el-header {
+	background: #1f293a;
+	line-height: 60px;
+	padding: 0 20px 0 10px;
+	display: flex;
+	justify-content: space-between;
+}
+.el-menu {
+	height: 100%;
+	border: none;
+}
+.el-main {
+	color: #666;
+	padding: 0;
+	background: #f2f2f2;
+}
+
+/*===分页，用于所有表格的底部分页组件===*/
+.allPages {
+	display: flex;
+	justify-content: flex-end;
+  	align-items: flex-end;
+  	margin-top: 20px;
+}
+
+/*===半圆按钮，主要用于所有页面顶部右上角的跳转按钮===*/
+.halfCircular {
+	background-color: #587ed1;
+	text-decoration: none;
+	color: #fff;
+	padding: 8px 28px;
+	border-top-left-radius: 20px;
+	border-bottom-left-radius: 20px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+/*===所有页面顶部标题容器===*/
+.pageTitleWrap {
+	background: #fff;
+	height: 56px;
+	line-height: 56px;
+	display: flex;
+	justify-content: space-between;
+	padding: 0 0 0 20px;
+}
+
+/*===所有页面主要内容容器===*/
+.pageContentWrap {
+	padding: 20px;
+	margin: 20px;
+	background-color: #fff;
+	border-radius: 4px;
+}
+
+.pageContentWrap .pageContent-search {
+	background-color: #f2f2f2;
+	padding: 20px;
+}
+
+/*===所有页面页面标题===*/
+.pageContentWrap-title {
+	color: #587ED1;
+	border-left: 6px solid #587ED1;
+	padding-left: 20px;
+}
+
+/*===所有页面页面内容容器===*/
+.pageContentWrap-content {
+	margin: 20px 0 0 20px;
+}
+
+
+/*===所有表格（隐藏横向滚动条）===*/
+.el-table__body-wrapper, .el-table__footer-wrapper, .el-table__header-wrapper{
+	width: 101%;
+}
+
+/*===上游产品管理 - 会员卡管理 - 新增产品===*/
+.FormAdd .el-form-item__content {
+	display: flex;
+	flex-wrap: wrap;
+  	align-content: space-between;
+}
+
+/*===上游产品管理 / 会员卡管理 / 新增产品，是否下发短信label===*/
+.FormAdd .last label {
+	line-height: 16px;
+}
+
+/*===下游客户管理 / 客户列表 / 下游客户充值===*/
+.CustomerRecharge .el-form-item__content {
+	display: flex;
+}
+.f-right .el-form-item__content {
+	float: right;
+}
+
+/*===工具类===*/
+.mT10 {
+	margin-top: 10px;
+}
+.mT20 {
+	margin-top: 20px;
+}
+.mT40 {
+	margin-top: 40px;
+}
+.mB0 {
+	margin-bottom: 0;
+}
+.mB10 {
+	margin-bottom: 10px;
+}
+.mB20 {
+	margin-bottom: 20px;
+}
+.mL10 {
+	margin-left: 10px;
+}
+.mL20 {
+	margin-left: 20px;
+}
+.mL40 {
+	margin-left: 40px;
+}
+.mR10 {
+	margin-right: 10px;
+}
+.mR20 {
+	margin-right: 20px;
+}
+.w350 {
+	width: 350px;
+}

@@ -1,0 +1,145 @@
+<template>
+	<div class="details">
+		<div class="pageTitleWrap">
+			<page-address></page-address>
+			<div class="backBtn"><span class='halfCircular' @click='HandleBack'>返回上一页</span></div>
+		</div>
+		<div class="pageContentWrap">
+			<div class="table">
+				<table>
+					<tr>
+						<td class="tr-title">下游渠道</td>
+						<td class="tr-value">{{ Orders.orgName }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">下游订单号</td>
+						<td class="tr-value">{{ Orders.orderSEQ }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">骏伯订单号</td>
+						<td class="tr-value">{{ Orders.orderId }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">上游订单号</td>
+						<td class="tr-value">{{ Orders.transferId }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">订购手机号码</td>
+						<td class="tr-value">{{ Orders.phoneNo }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">订购产品名称</td>
+						<td class="tr-value">{{ Orders.productName }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">产品供应商</td>
+						<td class="tr-value">{{ Orders.supplier }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">接入方式</td>
+						<td class="tr-value">{{ Orders.dockingTypeName }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">充值方式</td>
+						<td class="tr-value">{{ Orders.rechargeTypeName }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">采购价（元）</td>
+						<td class="tr-value">{{ Orders.purchasePrice }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">批发价（元）</td>
+						<td class="tr-value">{{ Orders.wholesalePrice }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">订购时间</td>
+						<td class="tr-value">{{ Orders.createTime }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">订单状态</td>
+						<td class="tr-value">{{ Orders.orderStatusDesc }}</td>
+					</tr>
+					<tr v-if="Orders.exchangeCode !== ''">
+						<td class="tr-title">会员卡密</td>
+						<td class="tr-value">{{ Orders.exchangeCode }}</td>
+					</tr>
+					<tr>
+						<td class="tr-title">备注</td>
+						<td class="tr-value">{{ Orders.remark }}</td>
+					</tr>
+				</table>
+				<div class="mT40">
+					<el-button type="primary" size="medium" @click='HandleBack'>返回订单列表</el-button>
+					<el-button type="info" size="medium" :disabled="Orders.returnCode !== '0'" @click='HandleRefund'>申请退款</el-button>
+				</div>
+			</div>
+		</div>
+	</div>
+</template>
+
+<script>
+	export default {
+		data () {
+			return {
+				Orders: {}
+			}
+		},
+
+		created () {
+			this.Orders = JSON.parse(window.sessionStorage.getItem('JB_VipCardOrders_Details'));
+		},
+
+		methods: {
+			/*===返回上一页/返回订单列表===*/
+			HandleBack () {
+				this.$router.push('/VipCardOrders')
+			},
+
+			/*===申请退款===*/
+			HandleRefund () {
+				const self = this;
+				let url = self.URL.DownStreamOrder.VipCardOrders.balanceRefund;
+				let obj = {
+					supplierNum: self.Orders.supplierNum,
+					orgId: self.Orders.orgId,
+					wholesalePrice: self.Orders.wholesalePrice,
+					orderId: self.Orders.orderId,
+				}
+				self.API.PostEntity(url, obj)
+				.then(() => {
+					self.Orders.returnCode = '3';
+					self.Orders.orderStatusDesc = '已退款';
+				})
+			}
+		}
+	}
+</script>
+
+<style scoped>
+	.table {
+		display: flex;
+  		flex-direction: column;
+  		justify-content: space-between;
+  		align-items: center;
+	}
+	.table table {
+		width: 1094px;
+	}
+	.table table td{
+		border:1px solid #ccc;
+		height: 44px;
+		line-height: 44px;
+		font-size: 14px;
+	} 
+	.table table td.tr-title {
+		width: 250px;
+		text-align: right;
+		box-sizing: border-box;
+		padding: 0 10px;
+	}
+	.table table td.tr-value {
+		text-align: left;
+		box-sizing: border-box;
+		padding: 0 10px;
+	}
+</style>

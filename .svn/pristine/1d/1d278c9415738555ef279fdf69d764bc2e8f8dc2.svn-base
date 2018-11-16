@@ -1,0 +1,409 @@
+<template>
+  <div class="vipCardOrder">
+    <div class="pageTitleWrap">
+      <page-address></page-address>
+    </div>
+    <div class="pageContentWrap">
+      <div class="pageContent-search">
+        <el-form :model="Orders" ref="Orders" :inline="true" label-width='100px' label-position='left'>
+          <el-form-item label="订购时间：">
+            <el-date-picker v-model="DateRange" type="daterange" range-separator="至" start-placeholder="开始日期"
+                            end-placeholder="结束日期" value-format="yyyy-MM-dd" @change='HandleGetDate'></el-date-picker>
+          </el-form-item>
+          <el-form-item label="订购号码：">
+            <el-input size="medium" v-model="Orders.phoneNo" :maxlength='11' class='w350'
+                      placeholder="请输入订购号码查询"></el-input>
+          </el-form-item>
+          <el-form-item label="产品名称：">
+            <el-input size="medium" v-model="Orders.productName" class='w350' placeholder="请输入产品名称查询"></el-input>
+          </el-form-item>
+          <br>
+          <el-form-item label="客户渠道：">
+            <el-select v-model="Orders.orgId" class='w350' filterable>
+              <el-option v-for="item in orgOptions" :key="item.orgId" :label="item.orgName"
+                         :value="item.orgId"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="接入方式：">
+            <el-select v-model="Orders.dockingType" class='w350'>
+              <el-option v-for="item in dockingOptions" :key="item.dockingType" :label="item.dockingTypeName"
+                         :value="item.dockingType"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label='供应商：'>
+            <el-select v-model="Orders.supplierNum" class='w350'>
+              <el-option v-for="item in supplierOptions" :key="item.supplierNum" :label="item.supplier"
+                         :value="item.supplierNum"></el-option>
+            </el-select>
+          </el-form-item>
+          <br>
+          <el-form-item label="下游订单号：">
+            <el-input size="medium" v-model="Orders.orderSEQ" class='w350' placeholder="请输入下游订单号"></el-input>
+          </el-form-item>
+          <el-form-item label="骏伯订单号：">
+            <el-input size="medium" v-model="Orders.orderId" class='w350' placeholder="请输入骏伯订单号"></el-input>
+          </el-form-item>
+          <el-form-item label="上游订单号：">
+            <el-input size="medium" v-model="Orders.transferId" class='w350' placeholder="请输入上游订单号"></el-input>
+          </el-form-item>
+          <br>
+          <el-form-item label="充值方式：" class='mB0'>
+            <el-select v-model="Orders.rechargeType" class='w350'>
+              <el-option v-for="item in RechargOptions" :key="item.rechangeType" :label="item.rechangeTypeName"
+                         :value="item.rechangeType"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="订单状态：" class='mB0'>
+            <el-select v-model="Orders.returnCode" class='w350'>
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label"
+                         :value="item.value"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item class='mB0'>
+            <el-button type="primary" size="medium" @click="HandleExport">导出</el-button>
+            <el-button type="primary" size="medium" @click="HandleSearch">查询</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="mT20">
+        <i-table ref="itable" :index="index" :list="tableLists" :columns="columns" :operates="operates"
+                 :total="totalCount" @handlePageChange="handlePageChange"></i-table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  export default {
+    data() {
+      return {
+        /*===查询参数===*/
+        Orders: {
+          startTime: this.API.getBeforeDate(0) + ' 00:00:00',
+          endTime: this.API.getBeforeDate(0) + ' 23:59:59',
+          /*startTime: this.API.getBeforeDate(3) + ' 00:00:00',//提测时候记得去掉
+          endTime: this.API.getBeforeDate(3) + ' 23:59:59',*/
+          phoneNo: '',
+          productName: '',
+          orgId: '',
+          dockingType: '',
+          supplierNum: '',
+          orderSEQ: '',
+          orderId: '',
+          transferId: '',
+          rechargeType: '',
+          returnCode: '',
+          pageIndex: 1,
+          pageSize: 10
+        },
+        DateRange: [this.API.getBeforeDate(0), this.API.getBeforeDate(0)],
+        /*===下拉列表===*/
+        orgOptions: [],
+        dockingOptions: [
+          {
+            dockingType: '',
+            dockingTypeName: '全部'
+          },
+          {
+            dockingType: 'api',
+            dockingTypeName: 'API对接'
+          },
+          {
+            dockingType: 'page',
+            dockingTypeName: "自有库存"
+          }
+        ],
+        supplierOptions: [],
+        RechargOptions: [
+          {
+            rechangeType: '',
+            rechangeTypeName: '全部'
+          },
+          {
+            rechangeType: 'direct',
+            rechangeTypeName: '自动充值'
+          },
+          {
+            rechangeType: 'pwd',
+            rechangeTypeName: '卡密充值'
+          }
+        ],
+        statusOptions: [
+          {
+            label: '全部',
+            value: ''
+          },
+          {
+            label: '成功',
+            value: 0
+          },
+          {
+            label: '失败',
+            value: 1
+          },
+          {
+            label: '发送中',
+            value: 2
+          },
+          {
+            label: '已退款',
+            value: 3
+          },
+          {
+            label: '异常',
+            value: 4
+          },
+          {
+            label: '缓存中',
+            value: 5
+          }
+        ],
+
+        /*===数据表===*/
+        index: {show: true},
+        tableLists: [],
+        totalCount: 0,
+        columns: [
+          {
+            prop: 'phoneNo',
+            label: '订购号码'
+          },
+          {
+            prop: 'productName',
+            label: '订购产品'
+          },
+          {
+            prop: 'supplier',
+            label: '供应商'
+          },
+          {
+            prop: 'dockingTypeName',
+            label: '接入方式'
+          },
+          {
+            prop: 'rechargeTypeName',
+            label: '充值方式'
+          },
+          {
+            prop: 'orgName',
+            label: '下游客户渠道'
+          },
+          {
+            prop: 'purchasePrice',
+            label: '采购价（元）'
+          },
+          {
+            prop: 'wholesalePrice',
+            label: '批发价（元）'
+          },
+          {
+            prop: 'createTime',
+            label: '订购时间',
+            minwidth: 100
+          },
+          {
+            prop: 'returnCode',
+            label: '订单状态',
+            formatter: (row) => {
+              switch (row.returnCode) {
+                case '0':
+                  return '成功';
+                  break;
+                case '1':
+                  return '失败';
+                  break;
+                case '2':
+                  return '发送中';
+                  break;
+                case '4':
+                  return '异常';
+                  break;
+                case '5':
+                  return '缓存中';
+                  break;
+                default:
+                  return '已退款'
+                  break;
+              }
+            }
+          }
+        ],
+        operates: {
+          minwidth: 100,
+          list: [
+            {
+              label: '详情',
+              callback: (row) => {
+                this.HandleDetail(row);
+              }
+            },
+            {
+              label: '重新发送',
+              disabled: (row) => {
+                if (row.returnCode === '1' || (row.returnCode === '0' && row.dockingType === 'page')) {
+                  return false;
+                } else {
+                  return true;
+                }
+              },
+              callback: (row) => {
+                this.HandleResend(row);
+              }
+            },
+            {
+              label: '退款',
+              disabled: (row) => {
+                if (row.returnCode === '0') {
+                  return false;
+                } else {
+                  return true;
+                }
+              },
+              callback: (row) => {
+                this.HandleRefund(row)
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    created() {
+      this.HandleGetCustomerLists();
+      this.HandleGetSuppliers();
+      this.HandleGetData();
+    },
+
+    activated() {
+      this.HandleGetData();
+    },
+
+    methods: {
+      /*===获取客户渠道列表===*/
+      HandleGetCustomerLists() {
+        const self = this;
+        let url = self.URL.DownStreamOrder.VipCardOrders.getCurrentAllOrg;
+        self.API.FetchEntity(url, '')
+          .then((res) => {
+            self.orgOptions = res.data;
+            self.orgOptions.unshift({
+              orgId: "",
+              orgName: "全部"
+            })
+          })
+      },
+
+      /*===获取供应商列表===*/
+      HandleGetSuppliers() {
+        const self = this;
+        let url = self.URL.UpStreamProduct.VipCard.getOperators;
+        self.API.GetEntity(url, {})
+          .then((res) => {
+            self.supplierOptions = res.data;
+            self.supplierOptions.unshift({supplier: '全部', supplierNum: ''})
+          })
+      },
+
+      /*===获取日期===*/
+      HandleGetDate(dateArr) {
+        if (!dateArr) {
+          this.Orders.startTime = this.Orders.endTime = '';
+        } else {
+          this.Orders.startTime = dateArr[0] + ' 00:00:00';
+          this.Orders.endTime = dateArr[1] + ' 23:59:59';
+        }
+      },
+
+      /*===查询===*/
+      HandleSearch() {
+        const self = this;
+        self.Orders.pageIndex = 1;
+        self.$refs.itable.tableCurrentPagination.Pcurrent = 1;
+        self.Orders.pageSize = 10;
+        self.$refs.itable.tableCurrentPagination.Psizes = 10;
+        self.HandleGetData();
+      },
+
+      /*===获取页面数据===*/
+      HandleGetData() {
+        const self = this;
+        self.$loading({fullscreen: true})
+        let url = self.URL.DownStreamOrder.VipCardOrders.getOrderInfo;
+        let obj = {...self.Orders};
+        self.API.GetEntity(url, obj)
+          .then((res) => {
+            self.$loading().close();
+            self.tableLists = res.data.data;
+            self.totalCount = res.data.totalCount;
+          })
+      },
+
+      /*===页码页面条数发生改变===*/
+      handlePageChange(pagination) {
+        this.Orders.pageIndex = (pagination.Pcurrent - 1) * pagination.Psizes + 1;
+        this.Orders.pageSize = pagination.Psizes;
+        this.HandleGetData();
+      },
+
+      /*===导出===*/
+      HandleExport() {
+        const self = this;
+        let url = self.URL.DownStreamOrder.VipCardOrders.exportOrderInfo;
+        let obj = {...self.Orders};
+        delete obj['pageIndex'];
+        delete obj['pageSize'];
+        self.API.PostEntity(url, obj)
+          .then((res) => {
+            let url = res.data;
+            window.open(url, '_blank');
+          })
+      },
+
+      /*===详情===*/
+      HandleDetail(row) {
+        const self = this;
+        window.sessionStorage.setItem('JB_VipCardOrders_Details', JSON.stringify(row))
+        self.$router.push("/VipCardOrders/OrderDetails");
+      },
+
+      /*===重新发送===*/
+      HandleResend(row) {
+        const self = this;
+        let url = self.URL.DownStreamOrder.VipCardOrders.retransmission;
+        let obj = {
+          supplierNum: row.supplierNum,
+          orderId: row.orderId,
+          dockingType: row.dockingType,
+          operator: JSON.parse(window.sessionStorage.getItem('Coupon_Login'))['userName']
+        }
+        self.API.PostEntity(url, obj)
+          .then(() => {
+            self.HandleGetData();
+          })
+      },
+
+      /*===退款===*/
+      HandleRefund(row) {
+        const self = this;
+        let url = self.URL.DownStreamOrder.VipCardOrders.balanceRefund;
+        let obj = {
+          supplierNum: row.supplierNum,
+          orgId: row.orgId,
+          wholesalePrice: row.wholesalePrice,
+          orderId: row.orderId,
+          operator: JSON.parse(window.sessionStorage.getItem('Coupon_Login'))['userName']
+        }
+        self.API.PostEntity(url, obj)
+          .then(() => {
+            self.HandleGetData();
+          })
+      }
+    }
+  }
+</script>
+
+<style scoped>
+  .w217 {
+    width: 217px;
+  }
+</style>

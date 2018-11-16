@@ -1,0 +1,481 @@
+<template>
+  <div class="membership">
+    <div class="pageTitleWrap">
+      <page-address></page-address>
+      <div class="backBtn"><span class='halfCircular' @click="HandleCancel">返回上一页</span></div>
+    </div>
+    <div class="pageContentWrap">
+      <div class="pageContentWrap-title">当前下游客户：{{ membership.orgName }}</div>
+      <div class="pageContent-search mT20">
+        <el-form :model="productList" ref="productList" :inline="true">
+          <el-form-item label="产品名称：" class='mB0'>
+            <el-input v-model="productList.productName" placeholder='请输入产品名称'></el-input>
+          </el-form-item>
+          <el-form-item label="充值方式：" class='mB0'>
+            <el-select v-model="productList.rechargeType">
+              <el-option v-for="item in rechargeOptions" :key="item.rechargeType" :label="item.rechangeTypeName"
+                         :value="item.rechangeType"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="接入方式：" class='mB0'>
+            <el-select v-model="productList.dockingType">
+              <el-option v-for="item in dockingOptions" :key="item.dockingType" :label="item.dockingTypeName"
+                         :value="item.dockingType"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="供应商：" class='mB0'>
+            <el-select v-model="productList.supplierNum" placeholder="全部">
+              <el-option v-for="item in supplierOptions" :key="item.supplierNum" :label="item.supplier"
+                         :value="item.supplierNum">
+              </el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item class='mB0'>
+            <el-button type="primary" size="medium" @click="HandleSearch">查询</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="table mT20">
+        <div class="table-title mB20">
+          <span>已选产品列表：</span>
+          <el-button type="primary" size="mini" @click="addDia = true">添加产品</el-button>
+        </div>
+        <div class="table-content">
+          <el-table :data='tableData' border stripe size='medium'>
+            <el-table-column label='序号' type='index' align='center' width="60" :index="IndexMethod"></el-table-column>
+            <el-table-column label='产品名称' align='center' prop='productName'></el-table-column>
+            <el-table-column label='下游产品编码' align='center' prop='orgProductCode'></el-table-column>
+            <el-table-column label='供应商' align='center' prop='supplier'></el-table-column>
+            <el-table-column label='接入方式' align='center' prop='dockingTypeName'></el-table-column>
+            <el-table-column label='充值方式' align='center' prop='rechargeTypeName'></el-table-column>
+            <el-table-column label='原价（元）' align='center' prop='price'></el-table-column>
+            <el-table-column label='供应商折扣' align='center' prop='supplierDiscount'>
+              <template slot-scope="scope">
+                {{ scope.row.supplierDiscount }}%
+              </template>
+            </el-table-column>
+            <el-table-column label='批发折扣' align='center'>
+              <template slot-scope="scope">
+                <input type="number" v-model="scope.row.wholesaleDiscount" class="wholesaleInputStyle"
+                       @input='HandleFormatInput(scope.row)'>
+                <span>%</span>
+              </template>
+            </el-table-column>
+            <el-table-column label='批发价' align='center'>
+              <template slot-scope="scope">
+                <el-input v-model="Number(scope.row.wholesalePrice).toFixed(2)" class='w90' :disabled="true"></el-input>
+                <span>元</span>
+              </template>
+            </el-table-column>
+            <el-table-column label='状态' align='center' prop='isUsedStatus'></el-table-column>
+            <el-table-column label='操作' align='center' min-width='160'>
+              <template slot-scope="scope">
+                <el-button v-if="scope.row.isUsed === 0" type="text"
+                           @click.native.prevent='HandleDisableOrEnable(scope.row)'>停用
+                </el-button>
+                <el-button v-if="scope.row.isUsed === 1" type="text"
+                           @click.native.prevent='HandleDisableOrEnable(scope.row)'>启用
+                </el-button>
+                <el-button type="text" @click.native.prevent='HandleCustomizedSMS(scope.row)'
+                           v-if="scope.row.dockingTypeName=='自有库存'&&scope.row.rechargeTypeName=='卡密充值'">卡密下发方式
+                </el-button>
+                <el-button type="text" @click.native.prevent='HandleCustomizedSMS(scope.row)' v-else>定制短信模版</el-button>
+                <el-button type="text" @click.native.prevent='HandleDelete(scope.row)'>从列表删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="allPages">
+            <el-pagination background @size-change="HandleSizeChange" @current-change="HandleCurrentChange"
+                           :current-page="currentPageIndex" :page-sizes="[10, 20, 50]" :page-size="productList.pageSize"
+                           layout="total, sizes, prev, pager, next, jumper" :total="totalCount">
+            </el-pagination>
+          </div>
+          <div style="text-align: center;">
+            <el-button @click="HandleCancel">取 消</el-button>
+            <el-button type="primary" @click="HandleSave">保 存</el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--卡密下发方式弹框-->
+    <el-dialog v-if="SMSRow.dockingTypeName=='自有库存'&&SMSRow.rechargeTypeName=='卡密充值'" title="卡密下发方式" center
+               :visible.sync="rechargeDia" @open="HandleSMSDiaOpen">
+      <el-form>
+        <el-form-item label="下发方式选择"><!--接口出来后需要改-->
+          <el-radio-group v-model="SMSRow.pwdSendType">
+            <el-radio label="0">短信下发</el-radio>
+            <el-radio label="1">接口下发</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="短信模版选择" v-if="SMSRow.pwdSendType=='0'">
+          <el-radio-group v-model="SMSRow.templateType">
+            <el-radio label="0">产品默认配置</el-radio>
+            <el-radio label="1">自定义模版</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="通知短信模版" v-if="SMSRow.pwdSendType=='0'&&SMSRow.templateType === '1'">
+          <el-input type="textarea" :rows="6" v-model="SMSRow.sms"
+                    placeholder="【骏伯网络】您已成功购买“产品名称”，兑换码位：“兑换码”；兑换有效期：即日起到2017年12月31日，请第一时间登录优酷土豆官方网站，再“会员”中进行兑换">
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+		      	<el-button @click="rechargeDia = false">取 消</el-button>
+		      	<el-button type="primary" @click="HandleSureCustomizedSMS">确 定</el-button>
+		    </span>
+    </el-dialog>
+    <!-- 定制短信模版-弹窗 -->
+    <el-dialog v-else title="定制短信模版" center :visible.sync="SMSDia" @open="HandleSMSDiaOpen">
+      <el-form>
+        <el-form-item label="短信模版选择">
+          <el-radio-group v-model="SMSRow.templateType">
+            <el-radio label="0">产品默认配置</el-radio>
+            <el-radio label="1">自定义模版</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="通知短信模版" v-if="SMSRow.templateType === '1'">
+          <el-input type="textarea" :rows="6" v-model="SMSRow.sms"
+                    placeholder="【骏伯网络】您已成功购买“产品名称”，兑换码位：“兑换码”；兑换有效期：即日起到2017年12月31日，请第一时间登录优酷土豆官方网站，再“会员”中进行兑换">
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+		      	<el-button @click="SMSDia = false">取 消</el-button>
+		      	<el-button type="primary" @click="HandleSureCustomizedSMS">确 定</el-button>
+		    </span>
+    </el-dialog>
+
+    <addpro :addDia="addDia"></addpro>
+  </div>
+</template>
+
+<script>
+  import Addpro from './MembershipCard_AddPro.vue';
+
+  export default {
+    data() {
+      return {
+        membership: {},
+        //	主页面列表模块
+        productList: {
+          orgId: '',
+          productName: '',
+          dockingType: '',
+          rechargeType: '',
+          supplierNum: '',
+          pageIndex: 1,
+          pageSize: 10
+        },
+        reg_discount: /(^[1-9]\d{0,}$)|(^[1-9]\d{0,}\.\d{1,2})$|(^0\.\d{1,2}$)/,
+        discountFlag: true,
+        contrastArr: [],//最原始的tableData
+        updateData: [],
+        insertData: [],
+
+        currentPageIndex: 1,
+        totalCount: 0,
+        tableData: [],
+
+        //	下拉列表选项
+        dockingOptions: [
+          {
+            dockingType: '',
+            dockingTypeName: '全部'
+          },
+          {
+            dockingType: 'api',
+            dockingTypeName: 'API对接'
+          },
+          {
+            dockingType: 'page',
+            dockingTypeName: "自有库存"
+          }
+        ],
+        rechargeOptions: [
+          {
+            rechangeType: '',
+            rechangeTypeName: '全部'
+          },
+          {
+            rechangeType: 'direct',
+            rechangeTypeName: '自动充值'
+          },
+          {
+            rechangeType: 'pwd',
+            rechangeTypeName: '卡密充值'
+          }
+        ],
+        supplierOptions: [],
+
+        //	定制短信模版弹框
+        SMSDia: false,
+        rechargeDia: false,//卡密下发方式弹框
+        SMSRow: {},
+        SMSRowOpen: {},
+
+        //	添加产品弹框
+        addDia: false
+      }
+    },
+
+    components: {
+      Addpro
+    },
+
+    created() {
+      this.membership = JSON.parse(window.sessionStorage.getItem('JB_Customer_Membership'));
+      this.productList.orgId = this.membership.orgId;
+      this.HandleGetSuppliers();
+      this.HandleFetchData();
+    },
+
+    methods: {
+      HandleCancel() {
+        const self = this;
+        if (self.insertData.length > 0 || self.updateData.length > 0) {
+          self.$confirm('未保存信息将不生效，您确定要继续?', '确认提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消'
+          }).then(() => {
+            self.$router.push("/CustomerList");
+          }).catch(() => {
+          });
+        } else {
+          self.$router.push("/CustomerList");
+        }
+      },
+
+      HandleSave() {
+        const self = this;
+        var _len=this.contrastArr.length;
+        for (let i = 0; i < _len; i++) {
+          if(this.contrastArr[i]['wholesaleDiscount']!=this.tableData[i]['wholesaleDiscount']){
+            this.updateData.push(this.tableData[i]);
+          }
+        }
+        self.$confirm('您确定添加这些产品？', '确认提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消'
+        })
+          .then(() => {
+            let url = self.URL.DownStreamCustomer.CustomerList.addOrUpdateVIP;
+            let entity = {
+              orgId: self.membership.orgId,
+              orgName: self.membership.orgName,
+              insert: self.insertData,
+              update: self.updateData,
+              operator: JSON.parse(window.sessionStorage.getItem('Coupon_Login'))['userName']
+             /* operator: "admin"*/
+            };
+            //console.log('entity', entity);
+            self.API.PostEntity(url, entity)
+              .then(() => {
+                self.HandleFetchData();
+                self.insertData = [];
+                self.updateData = [];
+              })
+          })
+          .catch(() => {
+
+          })
+      },
+
+      //	获取供应商列表
+      HandleGetSuppliers() {
+        const self = this;
+        let url = self.URL.UpStreamProduct.VipCard.getOperators;
+        self.API.GetEntity(url, {})
+          .then((res) => {
+            res.data.unshift({supplier: '全部', supplierNum: ''})
+            self.supplierOptions = res.data;
+          })
+      },
+
+      //	序号格式化
+      IndexMethod(index) {
+        let pIndex = this.currentPageIndex;
+        let pRowCounte = this.productList.pageSize;
+        return (pIndex - 1) * pRowCounte + index + 1;
+      },
+
+      //	获取表格数据
+      HandleFetchData() {
+        const self = this;
+        let url = self.URL.DownStreamCustomer.CustomerList.getVIPList;
+        let obj = {...self.productList};
+        self.API.GetEntity(url, obj)
+          .then((res) => {
+            self.totalCount = res.data.totalCount;
+            self.tableData = res.data.data;
+            //console.log(res.data.data);
+            self.contrastArr = res.data.data.map(o => {
+              return {...o}
+            })
+          })
+      },
+
+      //	查询
+      HandleSearch() {
+        const self = this;
+        self.currentPageIndex = 1;
+        self.productList.pageIndex = 1;
+        self.productList.pageSize = 10;
+        self.HandleFetchData();
+      },
+
+      //	页面条数改变
+      HandleSizeChange(size) {
+        const self = this;
+        self.currentPageIndex = 1;
+        self.productList.pageIndex = 1;
+        self.productList.pageSize = size;
+        self.HandleFetchData();
+      },
+
+      //	页码改变
+      HandleCurrentChange(current) {
+        const self = this;
+        self.currentPageIndex = current;
+        self.productList.pageIndex = ((current - 1) * self.productList.pageSize) + 1;
+        self.HandleFetchData();
+      },
+
+      //	停用/启用
+      HandleDisableOrEnable(row) {
+        const self = this;
+        let url = self.URL.DownStreamCustomer.CustomerList.updateProductStatus;
+        let obj = {
+          orgId: self.membership.orgId,
+          supplierNum: row.supplierNum,
+          isUsed: row.isUsed === 1 ? 0 : 1,
+          orgProductCode: row.orgProductCode
+        }
+        let title = row.isUsed === 1 ? '您确定启用该下游产品？' : '您确定停用该下游产品？';
+        self.$confirm(title, '确认提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消'
+        })
+          .then(() => {
+            self.API.PostEntity(url, obj)
+              .then(() => {
+                self.HandleFetchData();
+              })
+          })
+          .catch(() => {
+
+          })
+      },
+
+      //	定制短信模版或卡密下发方式
+      HandleCustomizedSMS(row) {
+        if (row.dockingTypeName == '自有库存' && row.rechargeTypeName == '卡密充值') {
+          this.rechargeDia = true;
+        } else {
+          this.SMSDia = true;
+        }
+        this.SMSRow = row;
+      },
+
+      //	确定定制短信模版
+      HandleSureCustomizedSMS() {
+        const self = this;
+        let row = {...self.SMSRow};
+        let url = self.URL.DownStreamCustomer.CustomerList.setTemplate;
+        let obj = {
+          orgId: self.membership.orgId,
+          orgProductCode: row.orgProductCode,
+          pwdSendType: row.pwdSendType,//卡密下发方式 0短信下发，1接口下发
+          sms: row.sms,
+          templateType: row.templateType
+        }
+        self.API.PostEntity(url, obj)
+          .then((res) => {
+            self.SMSDia = false;
+            self.rechargeDia = false;
+            self.HandleFetchData();
+          })
+      },
+
+      //	定制短信模版弹框打开
+      HandleSMSDiaOpen() {
+        let obj = {...this.SMSRow};
+        this.SMSRowOpen = {...obj};
+        this.SMSRow = {...this.SMSRowOpen}
+      },
+
+      //	从列表删除
+      HandleDelete(row) {
+        const self = this;
+        let url = self.URL.DownStreamCustomer.CustomerList.removeProduct;
+        let obj = {
+          orgId: self.membership.orgId,
+          supplierNum: row.supplierNum,
+          orgProductCode: row.orgProductCode
+        }
+        self.$confirm('您确定从列表中移除吗？', '确认提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消'
+        })
+          .then(() => {
+            self.API.PostEntity(url, obj)
+              .then(() => {
+                self.HandleFetchData();
+              })
+          })
+          .catch(() => {
+
+          })
+      },
+
+      //	检测输入折扣
+      HandleFormatInput(row) {
+        const self = this;
+        let discount = row['wholesaleDiscount'];
+        let _len = self.contrastArr.length;
+        if (!self.reg_discount.test(discount)) {
+          self.$message.error('折扣格式不对，录入时，最多支持小数点后2位');
+          row['wholesalePrice'] = '';
+          self.discountFlag = false;
+          return;
+        } else {
+          self.discountFlag = true;
+          let price = parseFloat(discount / 100 * row['price']).toFixed(2);
+          self.$set(row, 'wholesalePrice', Number(price));
+          // 之前是在这里添加updateData的数据，这里添加会有问题的，因为input时候每调用一回会执行多遍，导致数据重复，需要放在HandleSave中执行
+          /*for (let i = 0; i < _len; i++) {
+            if (row['orgProductCode'] == self.contrastArr[i]['orgProductCode'] && row['wholesaleDiscount'] != self.contrastArr[i]['wholesaleDiscount']) {
+              self.updateData.push(row);
+            }
+          }*/
+        }
+      }
+    }
+  }
+</script>
+
+<style scoped>
+  .wholesaleInputStyle {
+    -webkit-appearance: none;
+    background-color: #fff;
+    background-image: none;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    color: #606266;
+    display: inline-block;
+    font-size: inherit;
+    height: 40px;
+    line-height: 1;
+    outline: 0;
+    padding: 0 15px;
+    -webkit-transition: border-color .2s cubic-bezier(.645, .045, .355, 1);
+    transition: border-color .2s cubic-bezier(.645, .045, .355, 1);
+    width: 80%;
+  }
+
+  .w90 {
+    width: 90px;
+  }
+</style>
